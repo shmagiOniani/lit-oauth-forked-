@@ -165,11 +165,12 @@ h4 {
 //access service card scss
 
 .access-service-card-container {
-  position: absolute;
-  width: 70rem;
-  height: 34rem;
-  top: calc(45% - 17rem);
-  left: calc(50% - 35rem);
+  max-width: 1100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: auto;
+  margin-top: 150px;
   filter: drop-shadow(0px 4px 32px rgba(0, 0, 0, .25));
 }
 
@@ -198,6 +199,8 @@ h4 {
   justify-content: space-between;
 }
 
+
+
 .access-service-card-header-left {
   width: 60%;
   display: flex;
@@ -208,6 +211,12 @@ h4 {
     font-weight: 500;
     margin: 1rem 0 0 1rem;
     color: #2C0C72;
+  }
+}
+
+@media only screen and (max-width: 620px) {
+  .access-service-card-header-left {
+    width: 100%;
   }
 }
 
@@ -237,6 +246,18 @@ h4 {
   }
 }
 
+.access-service-card-header-right {
+  display: flex;
+  span {
+    margin: 0 10px;
+    color: #2C0C72;
+    display: flex;
+    align-items: center;
+  }
+}
+
+
+
 .access-service-card-header-right a {
   text-decoration: none;
 }
@@ -250,6 +271,34 @@ h4 {
   .lit-gateway-title {
     margin-left: 0.3rem;
     margin-right: 0.3rem;
+  }
+}
+
+@media only screen and (max-width: 700px) {
+  .access-service-card-header-right {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@media only screen and (max-width: 620px) {
+  .access-service-card-header {
+    height: fit-content;
+    flex-direction: column;
+    .access-service-card-header-left {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .access-service-card-header-right {
+      flex-direction: row;
+      justify-content: inherit;
+      span { 
+        justify-content: end;
+      }
+    }
+  }
+  .access-service-card-launch-button {
+    width: 100%;
   }
 }
 

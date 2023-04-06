@@ -14,6 +14,7 @@ export default function ZoomAccess() {
   const [litProtocolReady, setLitProtocolReady] = useState(false);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarInfo, setSnackbarInfo] = useState({});
+  const [conectLoading, setConectLoading] = useState(false)
 
   document.addEventListener(
     "lit-ready",
@@ -82,86 +83,94 @@ export default function ZoomAccess() {
   };
 
   const handleConnectAndJoin = async () => {
-    await performWithAuthSig(async (authSig) => {
-      console.log("authSig when granting access", authSig);
-      const shares = (
-        await getShares({
-          authSig,
-          meetingId,
-        })
-      ).shares;
+    setConectLoading(true)
 
-      console.log("shares", shares);
-
-      // get jwt from lit protocol to verify access control condition
-
-      let jwt;
-      let share;
-      // try all shares until we get a proper signed token
-      for (let i = 0; i < shares.length; i++) {
-        share = shares[i];
-        console.log("getting jwt for share", share);
-        const resourceId = getResourceIdForMeeting({
-          meeting: { id: share.id },
-          share,
-        });
-
-        try {
-          jwt = await window.litNodeClient.getSignedToken({
-            accessControlConditions: share.accessControlConditions,
-            chain: share.accessControlConditions[0].chain,
+   
+      await performWithAuthSig(async (authSig) => {
+        console.log("authSig when granting access", authSig);
+        setConectLoading(false)
+        const { status, shares } =
+          await getShares({
             authSig,
-            resourceId,
+            meetingId,
           });
-        } catch (e) {
-          if (e.errorCode && e.errorCode === "not_authorized") {
-            //swallow because we are going to try more shares
-            console.log("not authorized, trying more shares");
-          } else {
-            throw e;
+        
+          if(status){
+            handleOpenSnackBar(status, "error")
+          }
+        console.log("shares", shares, status);
+  
+        // get jwt from lit protocol to verify access control condition
+  
+        let jwt;
+        let share;
+        // try all shares until we get a proper signed token
+        for (let i = 0; i < shares.length; i++) {
+          share = shares[i];
+          console.log("getting jwt for share", share);
+          const resourceId = getResourceIdForMeeting({
+            meeting: { id: share.id },
+            share,
+          });
+  
+          try {
+            jwt = await window.litNodeClient.getSignedToken({
+              accessControlConditions: share.accessControlConditions,
+              chain: share.accessControlConditions[0].chain,
+              authSig,
+              resourceId,
+            });
+  
+          } catch (e) {
+            if (e.errorCode && e.errorCode === "not_authorized") {
+              //swallow because we are going to try more shares
+              console.log("not authorized, trying more shares");
+            } else {
+              throw e;
+            }
+          }
+          console.log(`got jwt from lit for share ${shares[i].id}`, jwt);
+  
+          if (jwt) {
+            break;
           }
         }
-        console.log(`got jwt from lit for share ${shares[i].id}`, jwt);
-
-        if (jwt) {
-          break;
+  
+        if (!jwt) {
+          await showNotAuthorizedMessage({ shares });
+          return;
         }
-      }
-
-      if (!jwt) {
-        await showNotAuthorizedMessage({ shares });
-        return;
-      }
-
-      // submit jwt to backend to get zoom url
-      const data = await getMeetingUrl({
-        assetType: share.assetType,
-        shareId: share.id,
-        assetIdOnService: share.assetIdOnService,
-        jwt,
+  
+        // submit jwt to backend to get zoom url
+        const data = await getMeetingUrl({
+          assetType: share.assetType,
+          shareId: share.id,
+          assetIdOnService: share.assetIdOnService,
+          jwt,
+        });
+  
+        console.log('DATA', data)
+  
+        if (!data.joinUrl) {
+          if (data.errorCode && data.errorCode === "not_authorized") {
+            await showNotAuthorizedMessage({ shares });
+          } else {
+            console.log(data);
+            setGlobalError({
+              title: "Sorry, an unknown error occured",
+              details: "Please email support@litprotocol.com with a bug report.",
+            });
+          }
+          return;
+        }
+  
+        const { joinUrl } = data;
+  
+        console.log("joinUrl", joinUrl);
+  
+        window.location = joinUrl;
       });
 
-      console.log('DATA', data)
-
-      if (!data.joinUrl) {
-        if (data.errorCode && data.errorCode === "not_authorized") {
-          await showNotAuthorizedMessage({ shares });
-        } else {
-          console.log(data);
-          setGlobalError({
-            title: "Sorry, an unknown error occured",
-            details: "Please email support@litprotocol.com with a bug report.",
-          });
-        }
-        return;
-      }
-
-      const { joinUrl } = data;
-
-      console.log("joinUrl", joinUrl);
-
-      window.location = joinUrl;
-    });
   };
 
   if (!litProtocolReady && !meeting) {
@@ -174,6 +183,7 @@ export default function ZoomAccess() {
   }
 
   return (
+    <>
     <section className={'access-service-card-container'}>
       <Card className={'access-service-card'}>
         <CardContent className={'access-service-card-header'}>
@@ -185,24 +195,29 @@ export default function ZoomAccess() {
             </div>
           </span>
           <span className={'access-service-card-header-right'}>
-            <p>Find more apps on the <strong>Lit Gateway</strong></p>
+           <span>Find more apps on the</span> 
+            <span><strong>Lit Gateway</strong></span>
           </span>
         </CardContent>
         <CardContent className={'access-service-card-content'}>
           {/*<div className={'access-service-card-content-left'}></div>*/}
           {/*<div className={'access-service-card-content-right'}></div>*/}
-          <p>You have been invited to join the Zoom meeting <strong>{meeting.name}</strong></p>
+          <p>You have been invited to join the Zoom meeting <strong>{meeting?.name}</strong></p>
           {/*<p>The scheduled start time is <strong>{}</strong></p>*/}
         </CardContent>
         <CardActions className={'access-service-card-actions'} style={{ padding: '0' }}>
           <span className={'access-service-card-launch-button'} onClick={handleConnectAndJoin}>
             Connect Wallet
+           {conectLoading && <span>
+              <CircularProgress color="success"/>
+            </span>}
             <svg width="110" height="23" viewBox="0 0 217 23" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M0.576416 20.9961H212.076L184.076 1.99609" stroke="white" strokeWidth="3"/>
             </svg>
           </span>
         </CardActions>
       </Card>
+    </section>
       <Snackbar
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         open={openSnackbar}
@@ -211,6 +226,6 @@ export default function ZoomAccess() {
       >
         <Alert severity={snackbarInfo.severity}>{snackbarInfo.message}</Alert>
       </Snackbar>
-    </section>
+    </>
   );
 }

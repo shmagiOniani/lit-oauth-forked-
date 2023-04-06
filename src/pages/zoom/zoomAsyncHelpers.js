@@ -19,12 +19,20 @@ export const logout = async (user) => {
 };
 
 export const getShares = async ({authSig, meetingId}) => {
-  const resp = await axios.post(`${API_HOST}/api/zoom/shares`, {
-    authSig,
-    meetingId,
-  });
+  try {
+    const resp = await axios.post(`${API_HOST}/api/zoom/shares`, {
+      authSig,
+      meetingId,
+    });
+    return resp.data;
+  } catch (error) {
+    console.log(error.response);
+    return {status: `status text : ${error.response.statusText};  status code : ${error.response.status}`};
+  }
+ 
 
-  return resp.data;
+
+
 };
 
 export const getMeetingUrl = async ({assetType, jwt, assetIdOnService, shareId}) => {
